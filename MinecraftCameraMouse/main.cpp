@@ -30,6 +30,40 @@ static int mouseYAnterior = 0;
 
 const float PI = 3.14159265f;
 
+// Protótipos de funções
+void dispararGolpePicareta(void);
+void definirAnguloCaminhada(float angulo);
+
+// NOVO: posição e orientação do personagem
+static float posX = 0.0f;
+static float posZ = 9.0f;
+static float anguloPersonagem = 180.0f;
+static const float VELOCIDADE_MOVIMENTO = 0.3f;
+
+// NOVO: animação do golpe da picareta
+static bool golpeandoPicareta = false;
+static bool golpeIndo = true;
+static float anguloGolpe = 0.0f;
+static const float VELOCIDADE_GOLPE = 500.0f; // Graus por segundo
+static const float ANGULO_MAXIMO_GOLPE = 95.0f; // Amplitude de 95 graus para um arco bem visível
+
+// NOVO: animação de caminhada das pernas
+static float tempoUltimoMovimento = 1.0f;
+static float tempoCaminhada = 0.0f;
+static float anguloCaminhada = 0.0f;
+
+// NOVO: modos de câmera alternáveis
+enum ModoCamera {
+    CAM_TERCEIRA_PESSOA = 0,
+    CAM_PRIMEIRA_PESSOA = 1,
+    CAM_SOBRE_OMBRO = 2,
+    CAM_ISOMETRICA = 3
+};
+
+static int modoCamera = CAM_TERCEIRA_PESSOA;
+
+
+
 // ------------------------------------------------------------
 // Chão
 // ------------------------------------------------------------
@@ -342,6 +376,11 @@ void controlarMouse(int botao, int estado, int x, int y) {
         arrastandoMouse = (estado == GLUT_DOWN);
         mouseXAnterior = x;
         mouseYAnterior = y;
+
+        // NOVO: clique esquerdo também dispara o golpe
+        if (estado == GLUT_DOWN) {
+            dispararGolpePicareta();
+        }
     }
 
     glutPostRedisplay();
@@ -359,6 +398,150 @@ void movimentarMouse(int x, int y) {
     mouseXAnterior = x;
     mouseYAnterior = y;
 
+    // Em 1ª Pessoa e Sobre o Ombro, o olhar do personagem se alinha sempre com o mouse
+    if (modoCamera == CAM_PRIMEIRA_PESSOA || modoCamera == CAM_SOBRE_OMBRO) {
+        anguloPersonagem = 180.0f - anguloHorizontal;
+    }
+
+    glutPostRedisplay();
+}
+
+// ------------------------------------------------------------
+// Golpe da picareta
+// ------------------------------------------------------------
+void dispararGolpePicareta(void) {
+    if (!golpeandoPicareta) {
+        golpeandoPicareta = true;
+        golpeIndo = true;
+        anguloGolpe = 0.0f;
+    }
+}
+
+void atualizarGolpePicareta(float dt) {
+    if (!golpeandoPicareta) return;
+
+    if (golpeIndo) {
+        anguloGolpe += VELOCIDADE_GOLPE * dt;
+        if (anguloGolpe >= ANGULO_MAXIMO_GOLPE) {
+            anguloGolpe = ANGULO_MAXIMO_GOLPE;
+            golpeIndo = false;
+        }
+    } else {
+        anguloGolpe -= VELOCIDADE_GOLPE * dt;
+        if (anguloGolpe <= 0.0f) {
+            anguloGolpe = 0.0f;
+            golpeandoPicareta = false;
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// Movimentação do personagem
+// ------------------------------------------------------------
+// ------------------------------------------------------------
+// Movimentação do personagem relativa à câmera
+// ------------------------------------------------------------
+void limitarPosicaoPersonagem(void) {
+    if (posX < -14.0f) posX = -14.0f;
+    if (posX >  14.0f) posX =  14.0f;
+    if (posZ < -14.0f) posZ = -14.0f;
+    if (posZ >  14.0f) posZ =  14.0f;
+}
+
+void moverPersonagem(float frente, float lado) {
+    float rad = anguloHorizontal * PI / 180.0f;
+
+    // Vetores de direção da câmera no plano horizontal (XZ)
+    float dirFrenteX = -sinf(rad);
+    float dirFrenteZ = -cosf(rad);
+
+    float dirLadoX = cosf(rad);
+    float dirLadoZ = -sinf(rad);
+
+    float dx = frente * dirFrenteX + lado * dirLadoX;
+    float dz = frente * dirFrenteZ + lado * dirLadoZ;
+
+    if (dx != 0.0f || dz != 0.0f) {
+        posX += dx * VELOCIDADE_MOVIMENTO;
+        posZ += dz * VELOCIDADE_MOVIMENTO;
+
+        if (modoCamera == CAM_PRIMEIRA_PESSOA || modoCamera == CAM_SOBRE_OMBRO) {
+            // Em 1ª Pessoa e Sobre o Ombro, o olhar fica fixado para a frente da visão
+            anguloPersonagem = 180.0f - anguloHorizontal;
+        } else {
+            // Em 3ª Pessoa Orbitante e Isométrica, o personagem vira para a direção em que anda
+            anguloPersonagem = atan2f(dx, dz) * 180.0f / PI;
+        }
+
+        tempoUltimoMovimento = 0.0f;
+    }
+
+    limitarPosicaoPersonagem();
+}
+
+void teclado(unsigned char tecla, int x, int y) {
+    switch (tecla) {
+        case ' ':
+            dispararGolpePicareta();
+            break;
+
+        case 'c': case 'C':
+            modoCamera = (modoCamera + 1) % 4;
+            switch (modoCamera) {
+                case CAM_TERCEIRA_PESSOA:
+                    printf("Modo de camera: 3a Pessoa Orbitante\n");
+                    break;
+                case CAM_PRIMEIRA_PESSOA:
+                    printf("Modo de camera: 1a Pessoa (Visao dos Olhos / Minecraft)\n");
+                    break;
+                case CAM_SOBRE_OMBRO:
+                    printf("Modo de camera: Sobre o Ombro (Over-The-Shoulder)\n");
+                    break;
+                case CAM_ISOMETRICA:
+                    printf("Modo de camera: Isometrica / Top-Down\n");
+                    break;
+            }
+            break;
+
+        case 'w': case 'W':
+            moverPersonagem(1.0f, 0.0f);
+            break;
+
+        case 's': case 'S':
+            moverPersonagem(-1.0f, 0.0f);
+            break;
+
+        case 'a': case 'A':
+            moverPersonagem(0.0f, -1.0f);
+            break;
+
+        case 'd': case 'D':
+            moverPersonagem(0.0f, 1.0f);
+            break;
+    }
+
+    glutPostRedisplay();
+}
+
+void teclasEspeciais(int tecla, int x, int y) {
+    switch (tecla) {
+        case GLUT_KEY_UP:
+            moverPersonagem(1.0f, 0.0f);
+            break;
+
+        case GLUT_KEY_DOWN:
+            moverPersonagem(-1.0f, 0.0f);
+            break;
+
+        case GLUT_KEY_LEFT:
+            moverPersonagem(0.0f, -1.0f);
+            break;
+
+        case GLUT_KEY_RIGHT:
+            moverPersonagem(0.0f, 1.0f);
+            break;
+    }
+
     glutPostRedisplay();
 }
 
@@ -374,19 +557,61 @@ void desenharCena(void) {
     float horizontal = anguloHorizontal * PI / 180.0f;
     float vertical = anguloVertical * PI / 180.0f;
 
-    // Centro da cena para o qual a câmera aponta
-    const float alvoX = 0.0f;
-    const float alvoY = 3.0f;
-    const float alvoZ = 0.0f;
+    float cameraX = 0.0f, cameraY = 0.0f, cameraZ = 0.0f;
+    float alvoX = posX, alvoY = 2.0f, alvoZ = posZ;
 
-    float cameraX = alvoX
-                  + distanciaCamera * cosf(vertical) * sinf(horizontal);
+    switch (modoCamera) {
+        case CAM_TERCEIRA_PESSOA: // 0: 3ª Pessoa Orbitante (Seguidora)
+            alvoX = posX;
+            alvoY = 2.0f;
+            alvoZ = posZ;
+            distanciaCamera = 18.0f;
 
-    float cameraY = alvoY
-                  + distanciaCamera * sinf(vertical);
+            cameraX = alvoX + distanciaCamera * cosf(vertical) * sinf(horizontal);
+            cameraY = alvoY + distanciaCamera * sinf(vertical);
+            cameraZ = alvoZ + distanciaCamera * cosf(vertical) * cosf(horizontal);
+            break;
 
-    float cameraZ = alvoZ
-                  + distanciaCamera * cosf(vertical) * cosf(horizontal);
+        case CAM_PRIMEIRA_PESSOA: // 1: 1ª Pessoa (Visão dos Olhos / Minecraft)
+            cameraX = posX;
+            cameraY = 3.2f; // Altura dos olhos
+            cameraZ = posZ;
+
+            alvoX = cameraX - sinf(horizontal) * cosf(vertical);
+            alvoY = cameraY - sinf(vertical);
+            alvoZ = cameraZ - cosf(horizontal) * cosf(vertical);
+            break;
+
+        case CAM_SOBRE_OMBRO: // 2: Sobre o Ombro (Over-The-Shoulder)
+            distanciaCamera = 6.0f;
+            {
+                float ombroX = posX + cosf(horizontal) * 0.7f;
+                float ombroZ = posZ - sinf(horizontal) * 0.7f;
+
+                alvoX = ombroX;
+                alvoY = 2.5f;
+                alvoZ = ombroZ;
+
+                cameraX = alvoX + distanciaCamera * cosf(vertical) * sinf(horizontal);
+                cameraY = alvoY + distanciaCamera * sinf(vertical);
+                cameraZ = alvoZ + distanciaCamera * cosf(vertical) * cosf(horizontal);
+            }
+            break;
+
+        case CAM_ISOMETRICA: // 3: Isométrica / Top-Down
+            alvoX = posX;
+            alvoY = 0.0f;
+            alvoZ = posZ;
+
+            distanciaCamera = 26.0f;
+            {
+                float vertIso = 60.0f * PI / 180.0f;
+                cameraX = alvoX + distanciaCamera * cosf(vertIso) * sinf(horizontal);
+                cameraY = alvoY + distanciaCamera * sinf(vertIso);
+                cameraZ = alvoZ + distanciaCamera * cosf(vertIso) * cosf(horizontal);
+            }
+            break;
+    }
 
     gluLookAt(
         cameraX, cameraY, cameraZ,
@@ -394,18 +619,27 @@ void desenharCena(void) {
         0.0f, 1.0f, 0.0f
     );
 
-    // Mantém a rotação automática da cena.
-    // Comente esta linha para girar apenas a câmera com o mouse.
-    glRotatef(anguloCena, 0.0f, 1.0f, 0.0f);
-
     desenharChao();
 
+    // Repassa o ângulo do golpe e da caminhada para o personagem, antes de desenhá-lo
+    definirAnguloGolpe(anguloGolpe);
+    definirAnguloCaminhada(anguloCaminhada);
+
+    // Desenha o personagem na posição controlada pelo teclado (oculta em 1ª pessoa)
+    if (modoCamera != CAM_PRIMEIRA_PESSOA) {
+        glPushMatrix();
+            glTranslatef(posX, 0.0f, posZ);
+            glRotatef(anguloPersonagem, 0.0f, 1.0f, 0.0f);
+            desenharPersonagem();
+        glPopMatrix();
+    }
+
     // Desenha o personagem no centro da cena, sobre a pirâmide em degraus.
-    glPushMatrix();
-        glTranslatef(0.0f, 0.0f, 9.0f);      // Posição do personagem
-        glRotatef(180.0f, 0.0f, 1.0f, 0.0f); // Rosto voltado para o centro
-        desenharPersonagem();
-    glPopMatrix();
+    //glPushMatrix();
+    //    glTranslatef(0.0f, 0.0f, 9.0f);      // Posição do personagem
+    //    glRotatef(180.0f, 0.0f, 1.0f, 0.0f); // Rosto voltado para o centro
+    //    desenharPersonagem();
+    //glPopMatrix();
 
     desenharConjuntoPilar(-10.0f,  10.0f);
     desenharConjuntoPilar(-10.0f, -10.0f);
@@ -439,6 +673,25 @@ void atualizar(void) {
 
     anguloTriangulo += 60.0f * dt;
     if (anguloTriangulo >= 360.0f) anguloTriangulo -= 360.0f;
+
+    atualizarGolpePicareta(dt);
+
+    // Animação de caminhada das pernas (expressiva e contínua)
+    tempoUltimoMovimento += dt;
+
+    if (tempoUltimoMovimento < 0.15f) {
+        tempoCaminhada += dt * 14.0f;
+        anguloCaminhada = sinf(tempoCaminhada) * 50.0f; // Amplitude expressiva de 50 graus
+    } else {
+        // Desacelera suavemente até ficar ereto de pé (0 graus)
+        if (anguloCaminhada > 0.0f) {
+            anguloCaminhada -= 180.0f * dt;
+            if (anguloCaminhada < 0.0f) anguloCaminhada = 0.0f;
+        } else if (anguloCaminhada < 0.0f) {
+            anguloCaminhada += 180.0f * dt;
+            if (anguloCaminhada > 0.0f) anguloCaminhada = 0.0f;
+        }
+    }
 
     glutPostRedisplay();
 }
@@ -484,6 +737,9 @@ int main(int argc, char** argv) {
 
     glutMouseFunc(controlarMouse);
     glutMotionFunc(movimentarMouse);
+
+    glutKeyboardFunc(teclado);       // NOVO
+    glutSpecialFunc(teclasEspeciais); // NOVO
 
     glutMainLoop();
     return 0;
