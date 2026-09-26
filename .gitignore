@@ -1,0 +1,89 @@
+#==========================================
+#Executáveis e Binários
+#==========================================
+
+#Ignora arquivos .exe na raiz e em todas as subpastas
+
+*.exe
+*.out
+*.app
+*.bin
+
+#Arquivos de objetos e bibliotecas compiladas
+
+*.o
+*.obj
+*.so
+*.dylib
+*.a
+*.lib
+
+#==========================================
+#Pastas e Arquivos de Build
+#==========================================
+
+[Bb]uild/
+[Bb]in/
+[Ob]j/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+cmake-build-*/
+
+#==========================================
+#Arquivos gerados pelo CMake e Sistemas de Build
+#==========================================
+
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+==========================================
+
+Arquivos de IDEs e Editores
+
+==========================================
+
+Visual Studio
+
+.vs/
+*.vcxproj.user
+*.sln.docstates
+*.suo
+*.user
+
+Visual Studio Code
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+CLion / JetBrains
+
+.idea/
+
+Xcode
+
+*.xcodeproj/
+*.xcworkspace/
+
+==========================================
+
+Logs, Temporários e Cache
+
+==========================================
+
+*.log
+*.tmp
+*.temp
+*.swp
+*.bak
+.DS_Store
+Thumbs.db
