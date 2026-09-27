@@ -1,4 +1,10 @@
 #==========================================
+#Pastas e Arquivos (Apenas arquivos temporários/build)
+#==========================================
+
+MinecraftCameraMouse/
+
+#==========================================
 #Executáveis e Binários
 #==========================================
 
@@ -43,11 +49,9 @@ cmake_install.cmake
 install_manifest.txt
 compile_commands.json
 
-==========================================
-
-Arquivos de IDEs e Editores
-
-==========================================
+#==========================================
+#Arquivos de IDEs e Editores
+#==========================================
 
 Visual Studio
 
@@ -74,11 +78,9 @@ Xcode
 *.xcodeproj/
 *.xcworkspace/
 
-==========================================
-
-Logs, Temporários e Cache
-
-==========================================
+#==========================================
+#Logs, Temporários e Cache
+#==========================================
 
 *.log
 *.tmp
